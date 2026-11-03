@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ITE Pythonpoly</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0d0d1a; color:#e0e0e0; font-family:'Segoe UI',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+  /* HEADER */
+  #header {
+    background:linear-gradient(90deg,#1a1a2e,#16213e);
+    border-bottom:2px solid #ffd70033;
+    padding:10px 24px;
+    display:flex; align-items:center; gap:16px;
+  }
+  #header .logo { font-size:28px; }
+  #header h1 {
+    font-size:22px; font-weight:800; letter-spacing:2px;
+    background:linear-gradient(90deg,#FFD700,#FFA500);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  #header .dev { color:#666; font-size:12px; margin-left:auto; }
+  #header .help-btn {
+    background:#1a1a3e; border:1px solid #ffd70044; color:#ffd700;
+    padding:4px 12px; border-radius:6px; cursor:pointer; font-size:13px;
+  }
+  #header .help-btn:hover { background:#2a2a5e; }
+
+  /* MAIN LAYOUT */
+  #main {
+    display:flex; gap:20px; padding:20px;
+    align-items:flex-start;
+    justify-content:center;
+    min-height:calc(100vh - 58px);
+  }
+
+  /* BOARD */
+  #board-wrap { flex-shrink:0; }
+  #board {
+    width:646px; height:646px;
+    display:grid;
+    grid-template-columns:80px repeat(9,54px) 80px;
+    grid-template-rows:80px repeat(9,54px) 80px;
+    border:3px solid #2d2d4a;
+    position:relative;
+    background:#fafaf5;
+  }
+
+  /* CELLS */
+  .cell {
+    background:#fafaf5;
+    border:1px solid #ccc;
+    position:relative;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    cursor:default;
+    font-size:8px;
+    text-align:center;
+  }
+  .cell:hover .tooltip { display:block; }
+
+  /* Corner cells */
+  .cell.corner {
+    background:#f0f0e8;
+    font-size:9px;
+    font-weight:700;
+  }
+
+  /* Color strip for properties */
+  .cell.prop-bottom { padding-top:14px; }
+  .cell.prop-bottom .color-strip {
+    position:absolute; top:0; left:0; right:0; height:12px;
+  }
+  .cell.prop-left { padding-right:14px; }
+  .cell.prop-left .color-strip {
+    position:absolute; top:0; right:0; bottom:0; width:12px;
+  }
+  .cell.prop-top { padding-bottom:14px; }
+  .cell.prop-top .color-strip {
+    position:absolute; bottom:0; left:0; right:0; height:12px;
+  }
+  .cell.prop-right { padding-left:14px; }
+  .cell.prop-right .color-strip {
+    position:absolute; top:0; left:0; bottom:0; width:12px;
+  }
+
+  .cell .cell-icon { font-size:16px; line-height:1; }
+  .cell .cell-name { font-size:7.5px; font-weight:600; color:#222; line-height:1.2; margin-top:2px; }
+  .cell .cell-cost { font-size:7px; color:#555; }
+
+  /* Special cell backgrounds */
+  .cell.type-tax { background:#ffe0e0; }
+  .cell.type-jail { background:#e8f4e8; }
+  .cell.type-free { background:#e0f0ff; }
+  .cell.type-gotojail { background:#ffe8e0; }
+  .cell.type-go { background:#e8ffe8; }
+  .cell.type-chance { background:#fff8e0; }
+  .cell.type-chest { background:#f0e8ff; }
+  .cell.type-railroad { background:#f5f5f5; }
+
+  /* Modules display */
+  .cell .modules {
+    display:flex; gap:1px; flex-wrap:wrap; justify-content:center;
+    margin-top:2px;
+  }
+  .cell .module-dot {
+    width:6px; height:6px; background:#3355ff; border-radius:1px;
+  }
+
+  /* Owner indicator */
+  .cell .owner-bar {
+    position:absolute; bottom:0; left:0; right:0; height:3px;
+  }
+
+  /* Tokens */
+  .token {
+    width:32px; height:32px; border-radius:50%;
+    border:2.5px solid rgba(255,255,255,0.9);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+    position:absolute;
+    z-index:10;
+    transition:all 0.18s cubic-bezier(.34,1.56,.64,1);
+    cursor:default;
+    line-height:1;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+  }
+  .token.p0 {
+    background:linear-gradient(145deg,#60a5fa,#1d4ed8);
+    box-shadow:0 0 10px rgba(59,130,246,0.6);
+    bottom:4px; left:4px;
+  }
+  .token.p1 {
+    background:linear-gradient(145deg,#f87171,#b91c1c);
+    box-shadow:0 0 10px rgba(239,68,68,0.6);
+    bottom:4px; right:4px;
+  }
+  /* when both on same square, offset p0 slightly */
+  .token.p0.same { bottom:4px; left:2px; }
+  .token.p1.same { bottom:4px; right:2px; }
+
+  /* CENTER */
+  .board-center {
+    grid-column:2/11; grid-row:2/11;
+    background:#1a4a2a;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:6px;
+    border:1px solid #2d6a3a;
+  }
+  .center-snake { font-size:48px; }
+  .center-title {
+    font-size:18px; font-weight:900; letter-spacing:3px;
+    color:#FFD700; text-shadow:0 0 10px #ffd70088;
+  }
+  .center-dev { font-size:10px; color:#888; }
+  .center-turn { font-size:12px; color:#aaffaa; margin-top:4px; font-weight:600; }
+
+  /* TOOLTIP */
+  .tooltip {
+    display:none;
+    position:absolute;
+    z-index:100;
+    background:#1a1a2e;
+    border:1px solid #ffd70066;
+    color:#eee;
+    padding:6px 8px;
+    border-radius:6px;
+    font-size:10px;
+    white-space:nowrap;
+    pointer-events:none;
+    bottom:100%; left:50%;
+    transform:translateX(-50%);
+    min-width:120px;
+    line-height:1.5;
+  }
+
+  /* SIDE PANEL */
+  #side {
+    flex:1; min-width:280px; max-width:340px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+
+  /* Player cards */
+  .player-card {
+    background:#0f0f1e;
+    border:1px solid #2a2a50;
+    border-radius:12px;
+    padding:12px 14px;
+    transition:border-color 0.3s, box-shadow 0.3s;
+  }
+  .player-card.active {
+    border:2px solid #ffd700;
+    box-shadow:0 0 12px #ffd70044;
+  }
+  .player-card .pc-header { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+  .player-card .pc-token {
+    width:52px; height:52px; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.2);
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px; flex-shrink:0;
+    line-height:1; transition:transform 0.2s;
+  }
+  .player-card.active .pc-token { transform:scale(1.08); }
+  .player-card .pc-token.p0 {
+    background:linear-gradient(145deg,#60a5fa,#1d4ed8);
+    box-shadow:0 4px 18px rgba(59,130,246,0.45);
+    border-color:#93c5fd;
+  }
+  .player-card .pc-token.p1 {
+    background:linear-gradient(145deg,#f87171,#b91c1c);
+    box-shadow:0 4px 18px rgba(239,68,68,0.45);
+    border-color:#fca5a5;
+  }
+  .player-card .pc-info { flex:1; min-width:0; }
+  .player-card .pc-name { font-weight:700; font-size:14px; display:block; margin-bottom:1px; }
+  .player-card .pc-role { font-size:10px; color:#666; display:block; margin-bottom:4px; }
+  .player-card .pc-credits { color:#ffd700; font-weight:700; font-size:15px; display:block; }
+  .player-card .pc-bar-wrap { background:#1a1a3e; border-radius:4px; height:6px; overflow:hidden; }
+  .player-card .pc-bar { height:100%; background:linear-gradient(90deg,#27ae60,#2ecc71); border-radius:4px; transition:width 0.5s; }
+  .player-card .pc-bar.low { background:linear-gradient(90deg,#c0392b,#e74c3c); }
+  .player-card .pc-props { font-size:10px; color:#888; margin-top:4px; }
+  .player-card .pc-jail { font-size:10px; color:#e74c3c; font-weight:700; }
+
+  /* Dice section */
+  #dice-section {
+    background:#0f0f1e;
+    border:1px solid #2a2a50;
+    border-radius:10px;
+    padding:12px;
+    text-align:center;
+  }
+  #dice-section h3 { font-size:12px; color:#888; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+  #dice-display { display:flex; gap:12px; justify-content:center; margin-bottom:10px; }
+  .die {
+    width:52px; height:52px;
+    background:#1a1a3e;
+    border:2px solid #3a3a6e;
+    border-radius:10px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    padding:5px;
+    gap:3px;
+    transition:transform 0.1s;
+  }
+  .die.rolling { animation:dieRoll 0.6s ease; }
+  @keyframes dieRoll {
+    0%,100%{transform:rotate(0deg)}
+    25%{transform:rotate(-15deg) scale(1.1)}
+    75%{transform:rotate(15deg) scale(1.1)}
+  }
+  .die-dot {
+    width:100%; height:100%;
+    border-radius:50%;
+    background:#ffd700;
+  }
+  .die-dot.empty { background:transparent; }
+  #dice-total { font-size:11px; color:#aaa; }
+  #roll-btn {
+    background:linear-gradient(135deg,#27ae60,#2ecc71);
+    color:#fff; border:none; padding:10px 28px;
+    border-radius:8px; font-size:15px; font-weight:700;
+    cursor:pointer; margin-top:4px; letter-spacing:1px;
+    transition:all 0.2s;
+  }
+  #roll-btn:hover { transform:translateY(-1px); box-shadow:0 4px 12px #27ae6066; }
+  #roll-btn:disabled { background:#333; color:#666; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  /* Action panel */
+  #action-panel {
+    background:#0f0f1e;
+    border:1px solid #2a2a50;
+    border-radius:10px;
+    padding:12px;
+    min-height:80px;
+  }
+  #action-panel h3 { font-size:12px; color:#888; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+  #action-text { font-size:12px; color:#ccc; margin-bottom:8px; line-height:1.5; }
+  #action-buttons { display:flex; gap:6px; flex-wrap:wrap; }
+  .action-btn {
+    padding:7px 14px; border-radius:6px; border:none;
+    font-size:12px; font-weight:700; cursor:pointer;
+    transition:all 0.2s;
+  }
+  .action-btn:hover { transform:translateY(-1px); }
+  .action-btn.buy { background:#27ae60; color:#fff; }
+  .action-btn.buy:hover { background:#2ecc71; }
+  .action-btn.decline { background:#c0392b; color:#fff; }
+  .action-btn.decline:hover { background:#e74c3c; }
+  .action-btn.upgrade { background:#2980b9; color:#fff; }
+  .action-btn.upgrade:hover { background:#3498db; }
+  .action-btn.pay-jail { background:#e67e22; color:#fff; }
+  .action-btn.pay-jail:hover { background:#f39c12; }
+  .action-btn.neutral { background:#555; color:#fff; }
+  .action-btn.neutral:hover { background:#777; }
+
+  /* Game log */
+  #log-panel {
+    background:#0f0f1e;
+    border:1px solid #2a2a50;
+    border-radius:10px;
+    padding:12px;
+    flex:1;
+  }
+  #log-panel h3 { font-size:12px; color:#888; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; }
+  #log-list {
+    height:180px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:3px;
+  }
+  #log-list::-webkit-scrollbar { width:4px; }
+  #log-list::-webkit-scrollbar-track { background:#0a0a1a; }
+  #log-list::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
+  .log-entry {
+    font-size:11px; padding:3px 6px; border-radius:4px;
+    line-height:1.4;
+  }
+  .log-entry.info { color:#aaa; }
+  .log-entry.good { color:#2ecc71; background:#0d2d1a; }
+  .log-entry.bad { color:#e74c3c; background:#2d0d0d; }
+  .log-entry.neutral { color:#f39c12; background:#2d1f0d; }
+
+  /* MODAL OVERLAY */
+  .modal-overlay {
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.85);
+    z-index:1000;
+    align-items:center; justify-content:center;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal-card {
+    background:#0f0f1e;
+    border-radius:14px;
+    padding:28px;
+    max-width:500px; width:90%;
+    box-shadow:0 8px 40px rgba(0,0,0,0.8);
+  }
+
+  /* Question modal */
+  #q-modal .modal-card { border:2px solid #ffd70066; }
+  #q-modal .q-header { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  #q-modal .q-text { font-size:16px; color:#eee; margin-bottom:18px; line-height:1.6; font-weight:600; }
+  #q-modal .q-opts { display:flex; flex-direction:column; gap:8px; }
+  #q-modal .q-opt {
+    background:#1a1a3e; border:1px solid #3a3a6e;
+    color:#ddd; padding:10px 14px; border-radius:8px;
+    cursor:pointer; font-size:13px; text-align:left;
+    transition:all 0.2s; display:flex; align-items:center; gap:10px;
+  }
+  #q-modal .q-opt:hover { background:#2a2a5e; border-color:#ffd70088; }
+  #q-modal .q-opt.correct { background:#0d2d1a; border-color:#2ecc71; color:#2ecc71; }
+  #q-modal .q-opt.wrong { background:#2d0d0d; border-color:#e74c3c; color:#e74c3c; }
+  #q-modal .q-opt .opt-label {
+    width:24px; height:24px; border-radius:50%;
+    background:#2a2a5e; display:flex; align-items:center;
+    justify-content:center; font-weight:700; font-size:12px; flex-shrink:0;
+  }
+  #q-modal .q-learn {
+    margin-top:14px; padding:10px; background:#1a2a1a;
+    border-left:3px solid #27ae60; border-radius:4px;
+    font-size:12px; color:#aaffaa; line-height:1.5; display:none;
+  }
+  #q-modal .q-result { font-size:14px; font-weight:700; margin-top:12px; display:none; }
+  #q-modal .q-result.correct { color:#2ecc71; }
+  #q-modal .q-result.wrong { color:#e74c3c; }
+  #q-continue {
+    margin-top:14px; background:#27ae60; color:#fff;
+    border:none; padding:10px 24px; border-radius:8px;
+    font-size:14px; font-weight:700; cursor:pointer; display:none;
+    transition:background 0.2s;
+  }
+  #q-continue:hover { background:#2ecc71; }
+
+  /* Card modal */
+  #card-modal .modal-card { border:2px solid #9b59b666; }
+  #card-modal .card-emoji { font-size:40px; text-align:center; margin-bottom:10px; }
+  #card-modal .card-type { font-size:12px; color:#888; text-transform:uppercase; letter-spacing:1px; text-align:center; }
+  #card-modal .card-text { font-size:16px; color:#eee; text-align:center; margin:14px 0; line-height:1.6; font-weight:600; }
+  #card-ok {
+    display:block; margin:0 auto; background:#8e44ad; color:#fff;
+    border:none; padding:10px 28px; border-radius:8px;
+    font-size:14px; font-weight:700; cursor:pointer;
+    transition:background 0.2s;
+  }
+  #card-ok:hover { background:#9b59b6; }
+
+  /* Win modal */
+  #win-modal .modal-card { border:2px solid #ffd700; text-align:center; }
+  #win-modal .win-trophy { font-size:60px; margin-bottom:10px; }
+  #win-modal .win-title { font-size:26px; font-weight:900; color:#ffd700; margin-bottom:8px; }
+  #win-modal .win-sub { font-size:14px; color:#aaa; margin-bottom:20px; }
+  #restart-btn {
+    background:linear-gradient(135deg,#e67e22,#f39c12);
+    color:#fff; border:none; padding:12px 32px;
+    border-radius:10px; font-size:16px; font-weight:700;
+    cursor:pointer; transition:all 0.2s;
+  }
+  #restart-btn:hover { transform:scale(1.05); }
+
+  /* Help modal */
+  #help-modal .modal-card { border:2px solid #3498db66; max-width:600px; max-height:85vh; overflow-y:auto; }
+  #help-modal h2 { color:#ffd700; margin-bottom:12px; }
+  #help-modal h3 { color:#3498db; margin:12px 0 6px; }
+  #help-modal p, #help-modal li { font-size:13px; color:#ccc; line-height:1.7; }
+  #help-modal ul { padding-left:18px; }
+  #help-close {
+    margin-top:16px; background:#3498db; color:#fff; border:none;
+    padding:8px 22px; border-radius:8px; cursor:pointer; font-size:13px;
+    font-weight:700;
+  }
+
+  /* Responsive */
+  @media (max-width:980px) {
+    #main { flex-direction:column; align-items:center; }
+    #side { max-width:646px; width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="logo">🐍</div>
+  <h1>ITE PYTHONPOLY</h1>
+  <span style="font-size:13px;color:#aaa;margin-left:8px;">Learn Python Through Play</span>
+  <div class="dev">Developer: Rajesh R Mohan</div>
+  <button class="help-btn" onclick="showHelp()">? Help</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="board-wrap">
+    <div id="board">
+      <!-- Board cells generated by JS -->
+    </div>
+  </div>
+
+  <div id="side">
+    <!-- Player 1 Card -->
+    <div class="player-card active" id="card-p0">
+      <div class="pc-header">
+        <div class="pc-token p0">🧑‍💻</div>
+        <div class="pc-info">
+          <span class="pc-name">You</span>
+          <span class="pc-role">Player 1 · Human</span>
+          <span class="pc-credits" id="credits-p0">₿1500</span>
+        </div>
+      </div>
+      <div class="pc-bar-wrap"><div class="pc-bar" id="bar-p0" style="width:100%"></div></div>
+      <div class="pc-props" id="props-p0">Properties: none</div>
+      <div class="pc-jail" id="jail-p0" style="display:none"></div>
+    </div>
+
+    <!-- Player 2 Card -->
+    <div class="player-card" id="card-p1">
+      <div class="pc-header">
+        <div class="pc-token p1">🤖</div>
+        <div class="pc-info">
+          <span class="pc-name">PyBot</span>
+          <span class="pc-role">Player 2 · AI Opponent</span>
+          <span class="pc-credits" id="credits-p1">₿1500</span>
+        </div>
+      </div>
+      <div class="pc-bar-wrap"><div class="pc-bar" id="bar-p1" style="width:100%"></div></div>
+      <div class="pc-props" id="props-p1">Properties: none</div>
+      <div class="pc-jail" id="jail-p1" style="display:none"></div>
+    </div>
+
+    <!-- Dice Section -->
+    <div id="dice-section">
+      <h3>Dice</h3>
+      <div id="dice-display">
+        <div class="die" id="die1"></div>
+        <div class="die" id="die2"></div>
+      </div>
+      <div id="dice-total">Roll to start!</div>
+      <button id="roll-btn" onclick="rollDice()">🎲 Roll Dice</button>
+    </div>
+
+    <!-- Action Panel -->
+    <div id="action-panel">
+      <h3>Actions</h3>
+      <div id="action-text">Welcome to ITE Pythonpoly! Player 1 goes first.</div>
+      <div id="action-buttons"></div>
+    </div>
+
+    <!-- Game Log -->
+    <div id="log-panel">
+      <h3>Game Log</h3>
+      <div id="log-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Question Modal -->
+<div class="modal-overlay" id="q-modal">
+  <div class="modal-card">
+    <div class="q-header" id="q-header">Python Question</div>
+    <div class="q-text" id="q-text"></div>
+    <div class="q-opts" id="q-opts"></div>
+    <div class="q-result" id="q-result"></div>
+    <div class="q-learn" id="q-learn"></div>
+    <button id="q-continue" onclick="qContinue()">Continue →</button>
+  </div>
+</div>
+
+<!-- Card Modal -->
+<div class="modal-overlay" id="card-modal">
+  <div class="modal-card">
+    <div class="card-emoji" id="card-emoji"></div>
+    <div class="card-type" id="card-type"></div>
+    <div class="card-text" id="card-text"></div>
+    <button id="card-ok" onclick="cardOK()">OK</button>
+  </div>
+</div>
+
+<!-- Win Modal -->
+<div class="modal-overlay" id="win-modal">
+  <div class="modal-card">
+    <div class="win-trophy">🏆</div>
+    <div class="win-title" id="win-title">You Win!</div>
+    <div class="win-sub" id="win-sub"></div>
+    <button id="restart-btn" onclick="restartGame()">Play Again</button>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal-card">
+    <h2>🐍 How to Play ITE Pythonpoly</h2>
+    <h3>Objective</h3>
+    <p>Be the last player standing! Bankrupt your opponent by making them run out of credits.</p>
+    <h3>Basic Rules</h3>
+    <ul>
+      <li>Each player starts with <strong>₿1500 credits</strong>.</li>
+      <li>Roll two dice and move around the 40-square board.</li>
+      <li>Collect <strong>₿200</strong> each time you pass or land on GO (Run Program).</li>
+      <li>Rolling doubles lets you roll again (3 doubles = Debug Corner).</li>
+    </ul>
+    <h3>Properties (Python Topics)</h3>
+    <ul>
+      <li><strong>Unowned:</strong> You may buy it. Answer a Python question for a <strong>20% discount</strong>!</li>
+      <li><strong>Opponent owns it:</strong> Pay rent. Answer a question to <strong>halve the rent</strong>!</li>
+      <li><strong>Modules (upgrades):</strong> Own all in a color group → buy up to 3 modules each (🔷). Rent increases dramatically!</li>
+    </ul>
+    <h3>pip Install Libraries (Railroads)</h3>
+    <ul>
+      <li>Cost: ₿200. Rent: ₿25 × 2^(count-1) per library owned.</li>
+      <li>1 library = ₿25, 2 = ₿50, 3 = ₿100, 4 = ₿200</li>
+    </ul>
+    <h3>Special Squares</h3>
+    <ul>
+      <li><strong>Python Challenge 🐍:</strong> Draw a card — good or bad events!</li>
+      <li><strong>Code Review 📋:</strong> Draw a community card — similar events.</li>
+      <li><strong>Indentation Error / Memory Error ⚠:</strong> Pay a tax.</li>
+      <li><strong>Debug Corner 🐛:</strong> Just visiting, or stuck here 3 turns (pay ₿50 to leave early).</li>
+      <li><strong>Syntax Error! 💥:</strong> Go directly to Debug Corner (do not collect ₿200).</li>
+      <li><strong>Free Refactor ♻:</strong> Safe square — nothing happens.</li>
+    </ul>
+    <h3>Python Questions</h3>
+    <p>Each property group has 5 questions. Answer A/B/C/D. You'll always see the answer explanation after!</p>
+    <button id="help-close" onclick="closeHelp()">Got it!</button>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const SQUARES = [
+  { id:0,  type:'go',       name:'Run\nProgram',      icon:'▶' },
+  { id:1,  type:'property', name:'Integer\nVars',      color:'#8B4513', cost:60,  group:0, rent:[2,10,30,90,160,250] },
+  { id:2,  type:'chance',   name:'Python\nChallenge',  icon:'🐍' },
+  { id:3,  type:'property', name:'String\nVars',       color:'#8B4513', cost:60,  group:0, rent:[4,20,60,180,320,450] },
+  { id:4,  type:'tax',      name:'Indentation\nError', icon:'⚠', cost:200 },
+  { id:5,  type:'railroad', name:'pip\nsys',           cost:200 },
+  { id:6,  type:'property', name:'Float\n& Bool',      color:'#5BC8F5', cost:100, group:1, rent:[6,30,90,270,400,550] },
+  { id:7,  type:'chest',    name:'Code\nReview',       icon:'📋' },
+  { id:8,  type:'property', name:'List\nBasics',       color:'#5BC8F5', cost:100, group:1, rent:[6,30,90,270,400,550] },
+  { id:9,  type:'property', name:'Tuples',             color:'#5BC8F5', cost:120, group:1, rent:[8,40,100,300,450,600] },
+  { id:10, type:'jail',     name:'Debug\nCorner',      icon:'🐛' },
+  { id:11, type:'property', name:'Dict\nBasics',       color:'#E84393', cost:140, group:2, rent:[10,50,150,450,625,750] },
+  { id:12, type:'railroad', name:'pip\nnumpy',         cost:200 },
+  { id:13, type:'property', name:'Sets',               color:'#E84393', cost:140, group:2, rent:[10,50,150,450,625,750] },
+  { id:14, type:'chest',    name:'Code\nReview',       icon:'📋' },
+  { id:15, type:'property', name:'String\nMethods',    color:'#E84393', cost:160, group:2, rent:[12,60,180,500,700,900] },
+  { id:16, type:'property', name:'List\nMethods',      color:'#F5A623', cost:180, group:3, rent:[14,70,200,550,750,950] },
+  { id:17, type:'chance',   name:'Python\nChallenge',  icon:'🐍' },
+  { id:18, type:'property', name:'Dict\nMethods',      color:'#F5A623', cost:180, group:3, rent:[14,70,200,550,750,950] },
+  { id:19, type:'railroad', name:'pip\npandas',        cost:200 },
+  { id:20, type:'free',     name:'Free\nRefactor',     icon:'♻' },
+  { id:21, type:'property', name:'If\nStatements',     color:'#E74C3C', cost:220, group:4, rent:[18,90,250,700,875,1050] },
+  { id:22, type:'chance',   name:'Python\nChallenge',  icon:'🐍' },
+  { id:23, type:'property', name:'elif /\nelse',       color:'#E74C3C', cost:220, group:4, rent:[18,90,250,700,875,1050] },
+  { id:24, type:'property', name:'While\nLoops',       color:'#E74C3C', cost:240, group:4, rent:[20,100,300,750,925,1100] },
+  { id:25, type:'railroad', name:'pip\nmatplotlib',    cost:200 },
+  { id:26, type:'property', name:'For\nLoops',         color:'#F0C040', cost:260, group:5, rent:[22,110,330,800,975,1150] },
+  { id:27, type:'chest',    name:'Code\nReview',       icon:'📋' },
+  { id:28, type:'property', name:'range()',            color:'#F0C040', cost:260, group:5, rent:[22,110,330,800,975,1150] },
+  { id:29, type:'property', name:'List\nComp',         color:'#F0C040', cost:280, group:5, rent:[24,120,360,850,1025,1200] },
+  { id:30, type:'gotojail', name:'Syntax\nError!',     icon:'💥' },
+  { id:31, type:'property', name:'Function\nBasics',   color:'#27AE60', cost:300, group:6, rent:[26,130,390,900,1100,1275] },
+  { id:32, type:'chance',   name:'Python\nChallenge',  icon:'🐍' },
+  { id:33, type:'property', name:'Return\nValues',     color:'#27AE60', cost:300, group:6, rent:[26,130,390,900,1100,1275] },
+  { id:34, type:'tax',      name:'Memory\nError',      icon:'⚠', cost:100 },
+  { id:35, type:'property', name:'Default\nParams',    color:'#27AE60', cost:320, group:6, rent:[28,150,450,1000,1200,1400] },
+  { id:36, type:'property', name:'Lambda\nFunctions',  color:'#2C3E8C', cost:350, group:7, rent:[35,175,500,1100,1300,1500] },
+  { id:37, type:'chest',    name:'Code\nReview',       icon:'📋' },
+  { id:38, type:'property', name:'Classes\n& OOP',     color:'#2C3E8C', cost:400, group:7, rent:[50,200,600,1400,1700,2000] },
+  { id:39, type:'railroad', name:'pip\nrequests',      cost:200 },
+];
+
+const QUESTIONS = {
+  0: [
+    { q:"What is the output of: x = 5; print(type(x))?", opts:["<class 'int'>","<class 'num'>","<class 'integer'>","int"], ans:0,
+      learn:"type() returns the class. Integer literals create int objects." },
+    { q:"Which is a valid Python variable name?", opts:["2score","my-var","my_var","class"], ans:2,
+      learn:"Variable names must start with a letter or underscore. Reserved words can't be variable names." },
+    { q:"What is the value of: x = 10; print(x // 3)?", opts:["3.33","3","4","1"], ans:1,
+      learn:"// is floor division — returns the integer quotient." },
+    { q:"Which operator is used for exponentiation?", opts:["^","^^","**","exp()"], ans:2,
+      learn:"Python uses ** for powers. e.g. 2**10 = 1024. The ^ operator is bitwise XOR." },
+    { q:"What does x += 5 mean?", opts:["Compare x to 5","Set x to 5","Add 5 to x","Error"], ans:2,
+      learn:"x += 5 is shorthand for x = x + 5. It's an augmented assignment." }
+  ],
+  1: [
+    { q:"What does bool('False') return?", opts:["False","True","Error","None"], ans:1,
+      learn:"Any non-empty string is truthy. Only empty string '' is falsy." },
+    { q:"What is type(3.14) in Python?", opts:["double","decimal","float","number"], ans:2,
+      learn:"Python uses float for all floating-point numbers." },
+    { q:"Which is NOT a Python built-in type?", opts:["int","str","array","bool"], ans:2,
+      learn:"array is not a built-in. Python has lists. Arrays come from the array or numpy modules." },
+    { q:"What is the result of True + True?", opts:["TrueTrue","Error","2","True"], ans:2,
+      learn:"Booleans are subclasses of int. True==1, False==0, so True+True=2." },
+    { q:"What does str(42) return?", opts:["42","'42'","True","Error"], ans:1,
+      learn:"str() converts any value to its string representation." }
+  ],
+  2: [
+    { q:"Access 'age' from d = {'name':'Ali','age':20}?", opts:["d['age']","d.age","d[1]","d->age"], ans:0,
+      learn:"Dictionary values are accessed by key using square bracket notation." },
+    { q:"Which method returns all dictionary keys?", opts:[".values()",".items()",".keys()",".all()"], ans:2,
+      learn:"dict.keys() returns all keys. dict.values() gives values, dict.items() gives pairs." },
+    { q:"What does 'hello'.upper() return?", opts:["Hello","HELLO","hello","hELLO"], ans:1,
+      learn:"str.upper() converts all characters to uppercase." },
+    { q:"What is len({'a':1, 'b':2, 'a':3})?", opts:["3","6","2","Error"], ans:2,
+      learn:"Dictionary keys are unique. The second 'a' overwrites the first, leaving 2 keys." },
+    { q:"Which creates an empty set in Python?", opts:["{}","set()","[]","()"], ans:1,
+      learn:"{} creates an empty dict! Use set() for an empty set." }
+  ],
+  3: [
+    { q:"What does [1,2,3].append(4) return?", opts:["[1,2,3,4]","None","4","Error"], ans:1,
+      learn:"list.append() modifies the list in-place and returns None." },
+    { q:"What does sorted([3,1,2]) return?", opts:["[3,1,2]","[1,2,3]","None","{1,2,3}"], ans:1,
+      learn:"sorted() returns a NEW sorted list. list.sort() sorts in-place and returns None." },
+    { q:"Which removes and returns the last list item?", opts:["remove()","delete()","pop()","extract()"], ans:2,
+      learn:"list.pop() removes and returns the last item." },
+    { q:"What does dict.get('key','default') do?", opts:["Raises KeyError","Returns default if missing","Returns None","Adds the key"], ans:1,
+      learn:"dict.get(key, default) safely retrieves a value, returning default if key doesn't exist." },
+    { q:"What does ','.join(['a','b','c']) produce?", opts:["a,b,c","['a','b','c']","a b c","Error"], ans:0,
+      learn:"str.join() concatenates a list with the separator between each element." }
+  ],
+  4: [
+    { q:"Output of: if 0: print('yes') else: print('no')?", opts:["yes","no","Error","None"], ans:1,
+      learn:"0 is falsy in Python. 0, '', [], {}, None all evaluate to False." },
+    { q:"What does `elif` stand for?", opts:["else if","else in loop","end if","execute if"], ans:0,
+      learn:"elif is Python's 'else if'. It avoids deeply nested if-else chains." },
+    { q:"x = 5 if True else 10 — what is x?", opts:["10","5","True","Error"], ans:1,
+      learn:"Ternary expression syntax: value_if_true if condition else value_if_false." },
+    { q:"Which operator checks equality in Python?", opts:["=","===","==","eq()"], ans:2,
+      learn:"== checks equality. = is assignment. Python has no === like JavaScript." },
+    { q:"Output: x=3; print('big' if x>5 else 'small')?", opts:["big","small","3","Error"], ans:1,
+      learn:"3 is not > 5, so the else branch 'small' is used." }
+  ],
+  5: [
+    { q:"What does `for i in range(3)` iterate over?", opts:["[1,2,3]","[0,1,2]","[0,1,2,3]","[1,2]"], ans:1,
+      learn:"range(n) generates integers 0 up to (but not including) n." },
+    { q:"What keyword exits a loop immediately?", opts:["exit","stop","break","end"], ans:2,
+      learn:"break immediately exits the innermost loop. continue skips to next iteration." },
+    { q:"What does range(2, 8, 2) produce?", opts:["[2,4,6]","[2,4,6,8]","[2,3,4,5,6,7]","[4,6,8]"], ans:0,
+      learn:"range(start, stop, step): starts at 2, ends before 8, steps by 2 → 2,4,6." },
+    { q:"What is [x**2 for x in range(4)]?", opts:["[0,1,4,9]","[1,4,9,16]","[0,1,2,3]","Error"], ans:0,
+      learn:"List comprehension: range(4) is 0,1,2,3. Squared: 0,1,4,9." },
+    { q:"What does `continue` do in a loop?", opts:["Exits the loop","Skips to next iteration","Restarts loop","Pauses"], ans:1,
+      learn:"continue skips the rest of the current iteration and jumps to the next cycle." }
+  ],
+  6: [
+    { q:"How do you define a function in Python?", opts:["function foo():","def foo():","func foo():","define foo():"], ans:1,
+      learn:"Python uses the def keyword to define functions. The body must be indented." },
+    { q:"What does `return` do in a function?", opts:["Prints output","Exits with a value","Creates a variable","Calls the function"], ans:1,
+      learn:"return ends the function and sends a value back to the caller. Without return, functions return None." },
+    { q:"Output: def f(x=2): return x*3; print(f())?", opts:["Error","x*3","6","2"], ans:2,
+      learn:"Default parameter x=2 is used when no argument is passed. f() uses x=2, returns 6." },
+    { q:"What is a lambda function?", opts:["Recursive function","Anonymous function","Class method","Built-in"], ans:1,
+      learn:"Lambda creates small anonymous functions: lambda x: x*2 is equivalent to a def returning x*2." },
+    { q:"What does *args allow?", opts:["Keyword arguments","Variable positional args","Required args","None"], ans:1,
+      learn:"*args collects any number of positional arguments into a tuple." }
+  ],
+  7: [
+    { q:"What keyword defines a class?", opts:["object","class","struct","type"], ans:1,
+      learn:"Python uses the class keyword. e.g. class Dog: defines a new class." },
+    { q:"What is __init__ in a Python class?", opts:["A destructor","A constructor","A class variable","A static method"], ans:1,
+      learn:"__init__ is the constructor — it runs automatically when a new instance is created." },
+    { q:"What does `self` refer to in a method?", opts:["The class itself","The parent class","The instance","Nothing"], ans:2,
+      learn:"self refers to the specific object instance. It's always the first method parameter." },
+    { q:"What is inheritance in OOP?", opts:["Copying a function","A class getting attributes from another","Importing a module","Creating an object"], ans:1,
+      learn:"class Dog(Animal): means Dog inherits all methods/attributes from Animal." },
+    { q:"What does isinstance(obj, MyClass) return?", opts:["The class name","True or False","The object","Error"], ans:1,
+      learn:"isinstance() checks if an object is an instance of a class. Returns True/False." }
+  ]
+};
+
+const PYTHON_CHALLENGE_CARDS = [
+  { text:"Your code passed all unit tests! Collect 50 credits.", action:'collect', amount:50 },
+  { text:"Bug squashed! Open source PR merged. Collect 100 credits.", action:'collect', amount:100 },
+  { text:"Your script automated a task. Collect 200 credits.", action:'collect', amount:200 },
+  { text:"Advance to Run Program (GO). Collect 200 credits.", action:'goto', square:0 },
+  { text:"Stack Overflow subscription. Pay 50 credits.", action:'pay', amount:50 },
+  { text:"Code refactoring required. Pay 100 credits.", action:'pay', amount:100 },
+  { text:"Infinite loop detected! Go to Debug Corner.", action:'jail', amount:0 },
+  { text:"Virtual environment setup complete! Collect 75 credits.", action:'collect', amount:75 },
+];
+
+const CODE_REVIEW_CARDS = [
+  { text:"Excellent pull request! Collect 150 credits.", action:'collect', amount:150 },
+  { text:"Advance to Run Program. Collect 200 credits.", action:'goto', square:0 },
+  { text:"Critical bug in production! Pay 200 credits.", action:'pay', amount:200 },
+  { text:"Go directly to Debug Corner.", action:'jail', amount:0 },
+  { text:"All players pay you 50 credits for consulting.", action:'collect_all', amount:50 },
+  { text:"Syntax errors found in review. Pay 50 credits.", action:'pay', amount:50 },
+  { text:"Advance to nearest pip install library.", action:'nearest_railroad', amount:0 },
+  { text:"Security audit passed. Collect 100 credits.", action:'collect', amount:100 },
+];
+
+// ===================== GAME STATE =====================
+let state = {
+  players: [
+    { name:'You', pos:0, credits:1500, props:[], railroads:0, jailed:false, jailTurns:0, doublesCount:0 },
+    { name:'PyBot', pos:0, credits:1500, props:[], railroads:0, jailed:false, jailTurns:0, doublesCount:0 }
+  ],
+  current: 0,  // 0 = human, 1 = AI
+  dice: [1,1],
+  isDoubles: false,
+  gameOver: false,
+  pendingAction: null,  // null | 'buy' | 'rent' | 'upgrade' | 'jail'
+  pendingData: {},
+  questionCallback: null,
+  cardCallback: null,
+  propOwners: {}, // squareId -> playerIndex
+  propModules: {}, // squareId -> count (0-3)
+  questionUsed: {},  // group -> [usedIndices]
+};
+
+// ===================== GRID POSITION =====================
+function getGridPos(id) {
+  if (id === 0)  return { col:11, row:11 };
+  if (id >= 1 && id <= 9)  return { col:11-id, row:11 };
+  if (id === 10) return { col:1, row:11 };
+  if (id >= 11 && id <= 19) return { col:1, row:11-(id-10) };
+  if (id === 20) return { col:1, row:1 };
+  if (id >= 21 && id <= 29) return { col:id-19, row:1 };
+  if (id === 30) return { col:11, row:1 };
+  if (id >= 31 && id <= 39) return { col:11, row:id-29 };
+  return { col:1, row:1 };
+}
+
+// Edge: bottom row (0-10), left col (10-20), top row (20-30), right col (30-40)
+function getEdge(id) {
+  if (id >= 0 && id <= 10) return 'bottom';
+  if (id >= 10 && id <= 20) return 'left';
+  if (id >= 20 && id <= 30) return 'top';
+  return 'right';
+}
+
+function isCorner(id) { return [0,10,20,30].includes(id); }
+
+// ===================== BUILD BOARD =====================
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  // Center
+  const center = document.createElement('div');
+  center.className = 'board-center';
+  center.innerHTML = `
+    <div class="center-snake">🐍</div>
+    <div class="center-title">ITE PYTHONPOLY</div>
+    <div class="center-dev">Developer: Rajesh R Mohan</div>
+    <div class="center-turn" id="center-turn">Player 1's Turn</div>
+  `;
+  board.appendChild(center);
+
+  // All 40 squares
+  SQUARES.forEach(sq => {
+    const pos = getGridPos(sq.id);
+    const edge = getEdge(sq.id);
+    const corner = isCorner(sq.id);
+
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.id = `cell-${sq.id}`;
+    cell.style.gridColumn = pos.col;
+    cell.style.gridRow = pos.row;
+
+    // Type class
+    cell.classList.add(`type-${sq.type}`);
+    if (corner) cell.classList.add('corner');
+
+    // Property edge class
+    if (sq.type === 'property') {
+      cell.classList.add(`prop-${edge}`);
+    }
+
+    // Build inner HTML
+    let inner = '';
+
+    if (sq.type === 'property') {
+      inner += `<div class="color-strip" style="background:${sq.color}"></div>`;
+    }
+
+    if (corner) {
+      inner += buildCornerContent(sq);
+    } else if (sq.type === 'property') {
+      inner += `<div class="cell-name">${sq.name.replace('\n','<br>')}</div>`;
+      inner += `<div class="cell-cost">₿${sq.cost}</div>`;
+    } else if (sq.type === 'railroad') {
+      inner += `<div class="cell-icon">🚂</div>`;
+      inner += `<div class="cell-name">${sq.name.replace('\n','<br>')}</div>`;
+      inner += `<div class="cell-cost">₿${sq.cost}</div>`;
+    } else if (sq.type === 'chance') {
+      inner += `<div class="cell-icon">🐍</div>`;
+      inner += `<div class="cell-name">Python<br>Challenge</div>`;
+    } else if (sq.type === 'chest') {
+      inner += `<div class="cell-icon">📋</div>`;
+      inner += `<div class="cell-name">Code<br>Review</div>`;
+    } else if (sq.type === 'tax') {
+      inner += `<div class="cell-icon">⚠</div>`;
+      inner += `<div class="cell-name">${sq.name.replace('\n','<br>')}</div>`;
+      inner += `<div class="cell-cost">₿${sq.cost}</div>`;
+    } else if (sq.type === 'free') {
+      inner += `<div class="cell-icon">♻</div>`;
+      inner += `<div class="cell-name">Free<br>Refactor</div>`;
+    }
+
+    // Modules placeholder
+    inner += `<div class="modules" id="modules-${sq.id}"></div>`;
+    // Owner bar
+    inner += `<div class="owner-bar" id="ownerbar-${sq.id}"></div>`;
+    // Tooltip
+    inner += `<div class="tooltip" id="tip-${sq.id}"></div>`;
+
+    cell.innerHTML = inner;
+    board.appendChild(cell);
+  });
+
+  // Tokens
+  renderTokens();
+}
+
+function buildCornerContent(sq) {
+  if (sq.type === 'go') return `<div class="cell-icon" style="font-size:20px">▶</div><div class="cell-name" style="font-size:9px;font-weight:800;color:#27ae60">RUN<br>PROGRAM</div><div class="cell-cost" style="color:#27ae60;font-size:8px">Collect ₿200</div>`;
+  if (sq.type === 'jail') return `<div class="cell-icon">🐛</div><div class="cell-name">DEBUG<br>CORNER</div>`;
+  if (sq.type === 'free') return `<div class="cell-icon">♻</div><div class="cell-name">FREE<br>REFACTOR</div>`;
+  if (sq.type === 'gotojail') return `<div class="cell-icon">💥</div><div class="cell-name" style="color:#c0392b">SYNTAX<br>ERROR!</div>`;
+  return '';
+}
+
+// ===================== TOKENS =====================
+function renderTokens() {
+  document.querySelectorAll('.token').forEach(t => t.remove());
+
+  const EMOJIS = ['🧑‍💻', '🤖'];
+  const shareSquare = !state.players[0].jailed && !state.players[1].jailed
+                      && state.players[0].pos === state.players[1].pos;
+
+  state.players.forEach((p, pi) => {
+    const targetId = p.jailed ? 10 : p.pos;
+    const cell = document.getElementById(`cell-${targetId}`);
+    if (!cell) return;
+
+    const token = document.createElement('div');
+    token.className = `token p${pi}`;
+    token.id = `token-${pi}`;
+    token.textContent = EMOJIS[pi];
+    token.title = pi === 0 ? 'You' : 'PyBot';
+
+    // Position: when sharing a square, squeeze closer to edges
+    if (shareSquare) {
+      if (pi === 0) { token.style.left = '2px';  token.style.bottom = '4px'; }
+      else          { token.style.right = '2px'; token.style.bottom = '4px'; }
+    } else {
+      if (pi === 0) { token.style.left = '50%'; token.style.transform = 'translateX(-50%)'; token.style.bottom = '4px'; }
+      else          { token.style.left = '50%'; token.style.transform = 'translateX(-50%)'; token.style.bottom = '4px'; }
+    }
+
+    cell.appendChild(token);
+  });
+}
+
+// ===================== DICE =====================
+const DIE_DOTS = [
+  [],               // 0 (unused)
+  [[1,1]],          // 1
+  [[0,0],[2,2]],    // 2
+  [[0,0],[1,1],[2,2]], // 3
+  [[0,0],[0,2],[2,0],[2,2]], // 4
+  [[0,0],[0,2],[1,1],[2,0],[2,2]], // 5
+  [[0,0],[0,2],[1,0],[1,2],[2,0],[2,2]], // 6
+];
+
+function renderDie(el, val) {
+  el.innerHTML = '';
+  for (let r=0; r<3; r++) {
+    for (let c=0; c<3; c++) {
+      const dot = document.createElement('div');
+      const hasDot = DIE_DOTS[val] && DIE_DOTS[val].some(([dr,dc]) => dr===r && dc===c);
+      dot.className = 'die-dot' + (hasDot ? '' : ' empty');
+      el.appendChild(dot);
+    }
+  }
+}
+
+function animateDice(finalD1, finalD2, callback) {
+  const die1 = document.getElementById('die1');
+  const die2 = document.getElementById('die2');
+  die1.classList.add('rolling');
+  die2.classList.add('rolling');
+
+  let frames = 0;
+  const interval = setInterval(() => {
+    renderDie(die1, Math.ceil(Math.random()*6));
+    renderDie(die2, Math.ceil(Math.random()*6));
+    frames++;
+    if (frames >= 8) {
+      clearInterval(interval);
+      die1.classList.remove('rolling');
+      die2.classList.remove('rolling');
+      renderDie(die1, finalD1);
+      renderDie(die2, finalD2);
+      document.getElementById('dice-total').textContent = `Total: ${finalD1+finalD2}${finalD1===finalD2 ? ' (Doubles!)' : ''}`;
+      if (callback) callback();
+    }
+  }, 75);
+}
+
+// ===================== LOGGING =====================
+function addLog(text, type='info') {
+  const list = document.getElementById('log-list');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  entry.textContent = text;
+  list.appendChild(entry);
+  list.scrollTop = list.scrollHeight;
+}
+
+// ===================== UI UPDATES =====================
+function updateUI() {
+  // Player cards
+  state.players.forEach((p, pi) => {
+    const card = document.getElementById(`card-p${pi}`);
+    card.className = 'player-card' + (state.current === pi && !state.gameOver ? ' active' : '');
+
+    document.getElementById(`credits-p${pi}`).textContent = `₿${p.credits}`;
+
+    const pct = Math.max(0, Math.min(100, p.credits / 1500 * 100));
+    const bar = document.getElementById(`bar-p${pi}`);
+    bar.style.width = pct + '%';
+    bar.className = 'pc-bar' + (pct < 30 ? ' low' : '');
+
+    const propNames = p.props.map(id => SQUARES[id].name.replace('\n',' ')).join(', ');
+    document.getElementById(`props-p${pi}`).textContent = p.props.length > 0 ? 'Props: ' + propNames : 'Properties: none';
+
+    const jailEl = document.getElementById(`jail-p${pi}`);
+    if (p.jailed) {
+      jailEl.style.display = '';
+      jailEl.textContent = `🐛 In Debug Corner (${p.jailTurns} turns left)`;
+    } else {
+      jailEl.style.display = 'none';
+    }
+  });
+
+  // Center turn
+  const ct = document.getElementById('center-turn');
+  if (ct) ct.textContent = state.players[state.current].name + "'s Turn";
+
+  // Update property owner bars and tooltips
+  SQUARES.forEach(sq => {
+    const ownerBar = document.getElementById(`ownerbar-${sq.id}`);
+    const tip = document.getElementById(`tip-${sq.id}`);
+    const modDiv = document.getElementById(`modules-${sq.id}`);
+
+    if (ownerBar && sq.type === 'property' || sq.type === 'railroad') {
+      const owner = state.propOwners[sq.id];
+      if (owner !== undefined) {
+        ownerBar.style.background = owner === 0 ? '#e74c3c' : '#3498db';
+      } else {
+        ownerBar.style.background = 'transparent';
+      }
+    }
+
+    if (modDiv && sq.type === 'property') {
+      const mods = state.propModules[sq.id] || 0;
+      modDiv.innerHTML = '';
+      for (let i=0; i<mods; i++) {
+        const d = document.createElement('div');
+        d.className = 'module-dot';
+        d.style.background = sq.color || '#3355ff';
+        modDiv.appendChild(d);
+      }
+    }
+
+    if (tip && sq.type === 'property') {
+      const owner = state.propOwners[sq.id];
+      const mods = state.propModules[sq.id] || 0;
+      const rent = sq.rent[mods];
+      const ownerName = owner !== undefined ? state.players[owner].name : 'Unowned';
+      tip.innerHTML = `<b>${sq.name.replace('\n',' ')}</b><br>Cost: ₿${sq.cost}<br>Rent: ₿${rent}<br>Modules: ${mods}/3<br>Owner: ${ownerName}`;
+    }
+    if (tip && sq.type === 'railroad') {
+      const owner = state.propOwners[sq.id];
+      const ownerName = owner !== undefined ? state.players[owner].name : 'Unowned';
+      tip.innerHTML = `<b>${sq.name.replace('\n',' ')}</b><br>Cost: ₿${sq.cost}<br>Owner: ${ownerName}`;
+    }
+  });
+}
+
+function setActionButtons(buttons) {
+  const wrap = document.getElementById('action-buttons');
+  wrap.innerHTML = '';
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = `action-btn ${b.cls}`;
+    btn.textContent = b.label;
+    btn.onclick = b.action;
+    if (b.disabled) btn.disabled = true;
+    wrap.appendChild(btn);
+  });
+}
+
+function setActionText(text) {
+  document.getElementById('action-text').textContent = text;
+}
+
+function enableRoll(en) {
+  document.getElementById('roll-btn').disabled = !en;
+}
+
+// ===================== QUESTION SYSTEM =====================
+let qCallback = null;
+
+function getQuestion(group) {
+  if (!state.questionUsed[group]) state.questionUsed[group] = [];
+  const pool = QUESTIONS[group];
+  if (!pool) return null;
+  let available = pool.map((_,i)=>i).filter(i => !state.questionUsed[group].includes(i));
+  if (available.length === 0) {
+    state.questionUsed[group] = [];
+    available = pool.map((_,i)=>i);
+  }
+  const idx = available[Math.floor(Math.random()*available.length)];
+  state.questionUsed[group].push(idx);
+  return pool[idx];
+}
+
+function showQuestion(group, playerIdx, callback) {
+  const q = getQuestion(group);
+  if (!q) { callback(false); return; }
+  qCallback = callback;
+
+  document.getElementById('q-header').textContent = 'Python Question — Group ' + (group+1);
+  document.getElementById('q-text').textContent = q.q;
+  document.getElementById('q-result').style.display = 'none';
+  document.getElementById('q-result').className = 'q-result';
+  document.getElementById('q-learn').style.display = 'none';
+  document.getElementById('q-continue').style.display = 'none';
+
+  const opts = document.getElementById('q-opts');
+  opts.innerHTML = '';
+  const labels = ['A','B','C','D'];
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'q-opt';
+    btn.innerHTML = `<span class="opt-label">${labels[i]}</span> ${opt}`;
+    if (playerIdx === 1) {
+      // AI: disable buttons, auto-answer
+      btn.disabled = true;
+    } else {
+      btn.onclick = () => handleQAnswer(i, q, opts);
+    }
+    opts.appendChild(btn);
+  });
+
+  document.getElementById('q-modal').classList.add('active');
+
+  if (playerIdx === 1) {
+    // AI answers after delay
+    setTimeout(() => {
+      const correct = Math.random() < 0.6;
+      const ans = correct ? q.ans : (q.ans + 1 + Math.floor(Math.random()*3)) % 4;
+      handleQAnswer(ans, q, opts, true);
+    }, 1200);
+  }
+}
+
+function handleQAnswer(chosen, q, optsEl, isAI=false) {
+  const correct = chosen === q.ans;
+  const btns = optsEl.querySelectorAll('.q-opt');
+  btns.forEach((btn, i) => {
+    btn.onclick = null;
+    btn.disabled = true;
+    if (i === q.ans) btn.classList.add('correct');
+    if (i === chosen && chosen !== q.ans) btn.classList.add('wrong');
+  });
+
+  const result = document.getElementById('q-result');
+  result.style.display = 'block';
+  result.className = 'q-result ' + (correct ? 'correct' : 'wrong');
+  result.textContent = correct ? '✓ Correct!' : '✗ Wrong! Correct: ' + ['A','B','C','D'][q.ans];
+
+  document.getElementById('q-learn').style.display = 'block';
+  document.getElementById('q-learn').textContent = '💡 ' + q.learn;
+  document.getElementById('q-continue').style.display = 'block';
+
+  const captured = correct;
+  const origCallback = qCallback;
+  qCallback = () => { origCallback(captured); };
+}
+
+function qContinue() {
+  document.getElementById('q-modal').classList.remove('active');
+  if (qCallback) { const cb = qCallback; qCallback = null; cb(); }
+}
+
+// ===================== CARD SYSTEM =====================
+let cardCallback = null;
+
+function showCard(type, card, playerIdx, callback) {
+  cardCallback = callback;
+  document.getElementById('card-type').textContent = type === 'chance' ? '🐍 Python Challenge' : '📋 Code Review';
+  document.getElementById('card-emoji').textContent = type === 'chance' ? '🐍' : '📋';
+  document.getElementById('card-text').textContent = card.text;
+  document.getElementById('card-modal').classList.add('active');
+
+  if (playerIdx === 1) {
+    setTimeout(() => { cardOK(); }, 1800);
+  }
+}
+
+function cardOK() {
+  document.getElementById('card-modal').classList.remove('active');
+  if (cardCallback) { const cb = cardCallback; cardCallback = null; cb(); }
+}
+
+// ===================== CORE GAME LOGIC =====================
+function rollDice() {
+  if (state.gameOver) return;
+  enableRoll(false);
+  setActionButtons([]);
+
+  const p = state.players[state.current];
+  const d1 = Math.ceil(Math.random()*6);
+  const d2 = Math.ceil(Math.random()*6);
+  state.dice = [d1, d2];
+  state.isDoubles = d1 === d2;
+
+  addLog(`${p.name} rolled ${d1} + ${d2} = ${d1+d2}${state.isDoubles ? ' (Doubles!)' : ''}`, 'neutral');
+
+  animateDice(d1, d2, () => {
+    if (p.jailed) {
+      handleJailRoll(d1, d2);
+    } else {
+      if (state.isDoubles) {
+        p.doublesCount++;
+        if (p.doublesCount >= 3) {
+          addLog(`${p.name} rolled 3 doubles in a row! Go to Debug Corner!`, 'bad');
+          p.doublesCount = 0;
+          sendToJail(state.current);
+          endTurn();
+          return;
+        }
+      } else {
+        p.doublesCount = 0;
+      }
+      movePlayer(state.current, d1+d2, () => {
+        handleLanding(state.current, () => {
+          if (state.isDoubles && !p.jailed && !state.gameOver) {
+            addLog(`${p.name} gets another turn (doubles)!`, 'neutral');
+            setTimeout(() => startTurn(false), 800);
+          } else {
+            endTurn();
+          }
+        });
+      });
+    }
+  });
+}
+
+function handleJailRoll(d1, d2) {
+  const p = state.players[state.current];
+  if (state.isDoubles) {
+    addLog(`${p.name} rolled doubles and is free from Debug Corner!`, 'good');
+    p.jailed = false;
+    p.jailTurns = 0;
+    movePlayer(state.current, d1+d2, () => {
+      handleLanding(state.current, endTurn);
+    });
+  } else {
+    p.jailTurns--;
+    if (p.jailTurns <= 0) {
+      addLog(`${p.name}'s 3 turns in Debug Corner are up! Pay ₿50 to leave.`, 'bad');
+      p.credits -= 50;
+      p.jailed = false;
+      p.jailTurns = 0;
+      addLog(`${p.name} paid ₿50 fine.`, 'bad');
+      movePlayer(state.current, d1+d2, () => {
+        handleLanding(state.current, endTurn);
+      });
+    } else {
+      addLog(`${p.name} stays in Debug Corner. ${p.jailTurns} turns left.`, 'info');
+      updateUI();
+      endTurn();
+    }
+  }
+}
+
+function movePlayer(playerIdx, steps, callback) {
+  const p = state.players[playerIdx];
+  let moved = 0;
+
+  function step() {
+    if (moved >= steps) {
+      renderTokens();
+      callback();
+      return;
+    }
+    const prev = p.pos;
+    p.pos = (p.pos + 1) % 40;
+    moved++;
+
+    // Collect GO bonus
+    if (p.pos === 0 && moved < steps) {
+      p.credits += 200;
+      addLog(`${p.name} passed GO! Collect ₿200.`, 'good');
+    }
+
+    renderTokens();
+    setTimeout(step, 200);
+  }
+  step();
+}
+
+function handleLanding(playerIdx, callback) {
+  const p = state.players[playerIdx];
+  const sq = SQUARES[p.pos];
+
+  // Check if passed GO on landing
+  if (p.pos === 0) {
+    p.credits += 200;
+    addLog(`${p.name} landed on GO! Collect ₿200.`, 'good');
+    updateUI();
+    callback();
+    return;
+  }
+
+  switch(sq.type) {
+    case 'property':
+      handlePropertyLanding(playerIdx, sq, callback);
+      break;
+    case 'railroad':
+      handleRailroadLanding(playerIdx, sq, callback);
+      break;
+    case 'tax':
+      addLog(`${p.name} hit ${sq.name.replace('\n',' ')}! Pay ₿${sq.cost}.`, 'bad');
+      p.credits -= sq.cost;
+      updateUI();
+      checkBankrupt(playerIdx, callback);
+      break;
+    case 'chance':
+      handleCard('chance', playerIdx, callback);
+      break;
+    case 'chest':
+      handleCard('chest', playerIdx, callback);
+      break;
+    case 'jail':
+      addLog(`${p.name} is just visiting the Debug Corner.`, 'info');
+      updateUI();
+      callback();
+      break;
+    case 'gotojail':
+      addLog(`${p.name} hit SYNTAX ERROR! Go to Debug Corner!`, 'bad');
+      sendToJail(playerIdx);
+      updateUI();
+      callback();
+      break;
+    case 'free':
+      addLog(`${p.name} is on Free Refactor. Relax!`, 'info');
+      updateUI();
+      callback();
+      break;
+    default:
+      updateUI();
+      callback();
+  }
+}
+
+function handlePropertyLanding(playerIdx, sq, callback) {
+  const p = state.players[playerIdx];
+  const owner = state.propOwners[sq.id];
+
+  if (owner === undefined) {
+    // Unowned
+    if (playerIdx === 0) {
+      // Human
+      setActionText(`${sq.name.replace('\n',' ')} is available! Buy for ₿${sq.cost}? Answer a question for 20% discount!`);
+      setActionButtons([
+        { label:`Buy ₿${sq.cost}`, cls:'buy', action:() => promptBuyProperty(playerIdx, sq, false, callback) },
+        { label:'Answer for discount', cls:'upgrade', action:() => promptBuyProperty(playerIdx, sq, true, callback) },
+        { label:'Decline', cls:'decline', action:() => { addLog(`${p.name} declined to buy ${sq.name.replace('\n',' ')}.`, 'info'); setActionButtons([]); callback(); } }
+      ]);
+      updateUI();
+    } else {
+      // AI always buys if has credits
+      if (p.credits >= sq.cost) {
+        const correct = Math.random() < 0.6;
+        const discount = correct ? Math.floor(sq.cost * 0.2) : 0;
+        const finalCost = sq.cost - discount;
+        p.credits -= finalCost;
+        p.props.push(sq.id);
+        state.propOwners[sq.id] = playerIdx;
+        addLog(`PyBot bought ${sq.name.replace('\n',' ')} for ₿${finalCost}${discount>0?' (with discount)':''}.`, 'neutral');
+        updateUI();
+        checkBankrupt(playerIdx, callback);
+      } else {
+        addLog(`PyBot can't afford ${sq.name.replace('\n',' ')}.`, 'info');
+        updateUI();
+        callback();
+      }
+    }
+  } else if (owner === playerIdx) {
+    addLog(`${p.name} landed on their own property.`, 'info');
+    // Offer upgrade if applicable
+    if (playerIdx === 0) {
+      offerUpgrade(playerIdx, sq, callback);
+    } else {
+      aiUpgrade(playerIdx, sq, callback);
+    }
+  } else {
+    // Owned by opponent — pay rent
+    const mods = state.propModules[sq.id] || 0;
+    const rent = sq.rent[mods];
+    const opponent = state.players[owner];
+
+    if (playerIdx === 0) {
+      setActionText(`${sq.name.replace('\n',' ')} owned by ${opponent.name}. Rent is ₿${rent}. Answer a question to halve it!`);
+      setActionButtons([
+        { label:`Pay ₿${rent}`, cls:'decline', action:() => {
+          payRent(playerIdx, owner, rent, sq, callback);
+        }},
+        { label:'Answer to halve rent', cls:'upgrade', action:() => {
+          showQuestion(sq.group, playerIdx, correct => {
+            const finalRent = correct ? Math.floor(rent/2) : rent;
+            addLog(correct ? `Correct! Rent halved to ₿${finalRent}.` : `Wrong! Full rent ₿${finalRent}.`, correct?'good':'bad');
+            payRent(playerIdx, owner, finalRent, sq, callback);
+          });
+        }}
+      ]);
+      updateUI();
+    } else {
+      // AI: 60% chance to answer question
+      const tries = Math.random() < 0.6;
+      if (tries) {
+        const correct = Math.random() < 0.6;
+        const finalRent = correct ? Math.floor(rent/2) : rent;
+        addLog(`PyBot ${correct?'correctly answered':'failed'} the question. Rent: ₿${finalRent}.`, correct?'good':'bad');
+        payRent(playerIdx, owner, finalRent, sq, callback);
+      } else {
+        payRent(playerIdx, owner, rent, sq, callback);
+      }
+    }
+  }
+}
+
+function promptBuyProperty(playerIdx, sq, withQuestion, callback) {
+  const p = state.players[playerIdx];
+  setActionButtons([]);
+
+  if (withQuestion) {
+    showQuestion(sq.group, playerIdx, correct => {
+      const discount = correct ? Math.floor(sq.cost * 0.2) : 0;
+      const finalCost = sq.cost - discount;
+      if (correct) {
+        addLog(`Correct! 20% discount applied — buy ${sq.name.replace('\n',' ')} for ₿${finalCost}.`, 'good');
+      } else {
+        addLog(`Wrong answer. No discount — buy ${sq.name.replace('\n',' ')} for ₿${sq.cost}?`, 'info');
+      }
+      if (p.credits >= finalCost) {
+        // Give player a choice even after the question
+        setActionText(`${correct ? '🎉 Discount applied!' : '📖 No discount.'} Buy ${sq.name.replace('\n',' ')} for ₿${finalCost}?`);
+        setActionButtons([
+          { label:`Buy ₿${finalCost}`, cls:'buy', action:() => {
+            setActionButtons([]);
+            p.credits -= finalCost;
+            p.props.push(sq.id);
+            state.propOwners[sq.id] = playerIdx;
+            addLog(`${p.name} bought ${sq.name.replace('\n',' ')} for ₿${finalCost}.`, 'good');
+            updateUI();
+            checkBankrupt(playerIdx, callback);
+          }},
+          { label:'Decline', cls:'decline', action:() => {
+            setActionButtons([]);
+            addLog(`${p.name} declined to buy ${sq.name.replace('\n',' ')}.`, 'info');
+            updateUI();
+            callback();
+          }}
+        ]);
+        updateUI();
+      } else {
+        addLog(`${p.name} can't afford ₿${finalCost}.`, 'bad');
+        setActionButtons([]);
+        updateUI();
+        callback();
+      }
+    });
+  } else {
+    if (p.credits >= sq.cost) {
+      p.credits -= sq.cost;
+      p.props.push(sq.id);
+      state.propOwners[sq.id] = playerIdx;
+      addLog(`${p.name} bought ${sq.name.replace('\n',' ')} for ₿${sq.cost}.`, 'good');
+      updateUI();
+      checkBankrupt(playerIdx, callback);
+    } else {
+      addLog(`${p.name} can't afford it.`, 'bad');
+      updateUI();
+      callback();
+    }
+  }
+}
+
+function payRent(payer, receiver, amount, sq, callback) {
+  const payerP = state.players[payer];
+  const receiverP = state.players[receiver];
+  const actual = Math.min(amount, payerP.credits);
+  payerP.credits -= actual;
+  receiverP.credits += actual;
+  addLog(`${payerP.name} paid ₿${actual} rent to ${receiverP.name} for ${sq.name.replace('\n',' ')}.`, 'bad');
+  setActionButtons([]);
+  updateUI();
+  checkBankrupt(payer, callback);
+}
+
+function offerUpgrade(playerIdx, sq, callback) {
+  const p = state.players[playerIdx];
+  // Check if player owns all in group
+  const groupProps = SQUARES.filter(s => s.type==='property' && s.group===sq.group);
+  const ownsAll = groupProps.every(s => state.propOwners[s.id] === playerIdx);
+  const mods = state.propModules[sq.id] || 0;
+
+  if (ownsAll && mods < 3) {
+    const upgCost = Math.floor(sq.cost * 0.5);
+    setActionText(`You own all ${sq.color} properties! Add a Module to ${sq.name.replace('\n',' ')} for ₿${upgCost}?`);
+    setActionButtons([
+      { label:`Add Module ₿${upgCost}`, cls:'upgrade', action:() => {
+        if (p.credits >= upgCost) {
+          p.credits -= upgCost;
+          state.propModules[sq.id] = mods + 1;
+          addLog(`${p.name} added Module to ${sq.name.replace('\n',' ')}! Rent up to ₿${sq.rent[mods+1]}.`, 'good');
+          setActionButtons([]);
+          updateUI();
+          callback();
+        } else {
+          addLog(`Not enough credits for upgrade.`, 'bad');
+          setActionButtons([]);
+          callback();
+        }
+      }},
+      { label:'Skip', cls:'neutral', action:() => { setActionButtons([]); callback(); } }
+    ]);
+    updateUI();
+  } else {
+    setActionButtons([]);
+    updateUI();
+    callback();
+  }
+}
+
+function aiUpgrade(playerIdx, sq, callback) {
+  const p = state.players[playerIdx];
+  const groupProps = SQUARES.filter(s => s.type==='property' && s.group===sq.group);
+  const ownsAll = groupProps.every(s => state.propOwners[s.id] === playerIdx);
+  const mods = state.propModules[sq.id] || 0;
+
+  if (ownsAll && mods < 3) {
+    const upgCost = Math.floor(sq.cost * 0.5);
+    if (p.credits >= upgCost && Math.random() < 0.7) {
+      p.credits -= upgCost;
+      state.propModules[sq.id] = mods + 1;
+      addLog(`PyBot added a Module to ${sq.name.replace('\n',' ')}! Rent: ₿${sq.rent[mods+1]}.`, 'neutral');
+      updateUI();
+    }
+  }
+  callback();
+}
+
+function handleRailroadLanding(playerIdx, sq, callback) {
+  const p = state.players[playerIdx];
+  const owner = state.propOwners[sq.id];
+
+  if (owner === undefined) {
+    if (playerIdx === 0) {
+      setActionText(`${sq.name.replace('\n',' ')} is available! Buy for ₿200?`);
+      setActionButtons([
+        { label:'Buy ₿200', cls:'buy', action:() => {
+          if (p.credits >= 200) {
+            p.credits -= 200;
+            p.props.push(sq.id);
+            state.propOwners[sq.id] = playerIdx;
+            p.railroads = p.props.filter(id => SQUARES[id].type==='railroad').length;
+            addLog(`${p.name} bought ${sq.name.replace('\n',' ')}.`, 'good');
+            setActionButtons([]);
+            updateUI();
+            callback();
+          }
+        }},
+        { label:'Decline', cls:'decline', action:() => { setActionButtons([]); callback(); } }
+      ]);
+      updateUI();
+    } else {
+      if (p.credits >= 200) {
+        p.credits -= 200;
+        p.props.push(sq.id);
+        state.propOwners[sq.id] = playerIdx;
+        p.railroads = p.props.filter(id => SQUARES[id].type==='railroad').length;
+        addLog(`PyBot bought ${sq.name.replace('\n',' ')}.`, 'neutral');
+        updateUI();
+        callback();
+      } else {
+        updateUI();
+        callback();
+      }
+    }
+  } else if (owner === playerIdx) {
+    addLog(`${p.name} owns this library.`, 'info');
+    updateUI();
+    callback();
+  } else {
+    const ownerP = state.players[owner];
+    const rrCount = ownerP.props.filter(id => SQUARES[id].type==='railroad').length;
+    const rent = 25 * Math.pow(2, rrCount-1);
+    addLog(`${p.name} must pay ₿${rent} rent to ${ownerP.name} (${rrCount} libraries).`, 'bad');
+    payRent(playerIdx, owner, rent, sq, callback);
+  }
+}
+
+function handleCard(type, playerIdx, callback) {
+  const deck = type === 'chance' ? PYTHON_CHALLENGE_CARDS : CODE_REVIEW_CARDS;
+  const card = deck[Math.floor(Math.random()*deck.length)];
+  const p = state.players[playerIdx];
+
+  showCard(type, card, playerIdx, () => {
+    applyCard(card, playerIdx, callback);
+  });
+}
+
+function applyCard(card, playerIdx, callback) {
+  const p = state.players[playerIdx];
+  const opp = state.players[1-playerIdx];
+
+  switch(card.action) {
+    case 'collect':
+      p.credits += card.amount;
+      addLog(`${p.name} collected ₿${card.amount}.`, 'good');
+      break;
+    case 'pay':
+      p.credits -= card.amount;
+      addLog(`${p.name} paid ₿${card.amount}.`, 'bad');
+      break;
+    case 'goto':
+      if (card.square === 0 && p.pos !== 0) {
+        p.credits += 200;
+        addLog(`${p.name} advances to GO and collects ₿200!`, 'good');
+      }
+      p.pos = card.square;
+      renderTokens();
+      updateUI();
+      checkBankrupt(playerIdx, callback);
+      return;
+    case 'jail':
+      sendToJail(playerIdx);
+      updateUI();
+      callback();
+      return;
+    case 'collect_all':
+      opp.credits -= card.amount;
+      p.credits += card.amount;
+      addLog(`${p.name} collected ₿${card.amount} from ${opp.name}.`, 'good');
+      break;
+    case 'nearest_railroad':
+      const rrSquares = [5,12,19,25,39];
+      let nearest = rrSquares[0];
+      let minDist = 40;
+      rrSquares.forEach(rr => {
+        const dist = (rr - p.pos + 40) % 40;
+        if (dist < minDist) { minDist = dist; nearest = rr; }
+      });
+      addLog(`${p.name} advances to nearest library at square ${nearest}.`, 'neutral');
+      p.pos = nearest;
+      renderTokens();
+      updateUI();
+      handleRailroadLanding(playerIdx, SQUARES[nearest], callback);
+      return;
+  }
+
+  updateUI();
+  checkBankrupt(playerIdx, callback);
+}
+
+function sendToJail(playerIdx) {
+  const p = state.players[playerIdx];
+  p.pos = 10;
+  p.jailed = true;
+  p.jailTurns = 3;
+  p.doublesCount = 0;
+  renderTokens();
+}
+
+function checkBankrupt(playerIdx, callback) {
+  const p = state.players[playerIdx];
+  if (p.credits < 0) {
+    endGame(1-playerIdx);
+    return;
+  }
+  updateUI();
+  callback();
+}
+
+function endGame(winnerIdx) {
+  state.gameOver = true;
+  const winner = state.players[winnerIdx];
+  const loser = state.players[1-winnerIdx];
+  document.getElementById('win-title').textContent = winner.name + ' Wins!';
+  document.getElementById('win-sub').textContent = `${loser.name} is bankrupt with ₿${loser.credits}. ${winner.name} has ₿${winner.credits}.`;
+  document.getElementById('win-modal').classList.add('active');
+  addLog(`GAME OVER! ${winner.name} wins!`, 'good');
+  enableRoll(false);
+}
+
+// ===================== TURN MANAGEMENT =====================
+function startTurn(switchPlayer=true) {
+  if (state.gameOver) return;
+  if (switchPlayer) {
+    state.current = 1 - state.current;
+  }
+  const p = state.players[state.current];
+  p.doublesCount = switchPlayer ? 0 : p.doublesCount;
+
+  updateUI();
+
+  if (state.current === 0) {
+    // Human turn
+    enableRoll(true);
+    setActionText(`Your turn! Roll the dice.`);
+    setActionButtons([]);
+    if (p.jailed) {
+      setActionText(`You're in Debug Corner! Roll for doubles, or pay ₿50 to leave.`);
+      setActionButtons([
+        { label:'Pay ₿50 to Leave', cls:'pay-jail', action:() => {
+          if (p.credits >= 50) {
+            p.credits -= 50;
+            p.jailed = false;
+            p.jailTurns = 0;
+            addLog('You paid ₿50 to leave Debug Corner.', 'neutral');
+            updateUI();
+            setActionButtons([]);
+          } else {
+            addLog('Not enough credits to pay fine.', 'bad');
+          }
+        }}
+      ]);
+    }
+  } else {
+    // AI turn
+    enableRoll(false);
+    setActionText(`PyBot is thinking...`);
+    setActionButtons([]);
+    setTimeout(() => {
+      if (!state.gameOver) rollDice();
+    }, 1200);
+  }
+}
+
+function endTurn() {
+  if (state.gameOver) return;
+  setActionButtons([]);
+  updateUI();
+  setTimeout(() => startTurn(true), 600);
+}
+
+// ===================== JAIL EARLY RELEASE BUTTON =====================
+// (handled in startTurn above)
+
+// ===================== RESTART =====================
+function restartGame() {
+  document.getElementById('win-modal').classList.remove('active');
+  document.getElementById('q-modal').classList.remove('active');
+  document.getElementById('card-modal').classList.remove('active');
+
+  state = {
+    players: [
+      { name:'You', pos:0, credits:1500, props:[], railroads:0, jailed:false, jailTurns:0, doublesCount:0 },
+      { name:'PyBot', pos:0, credits:1500, props:[], railroads:0, jailed:false, jailTurns:0, doublesCount:0 }
+    ],
+    current: 0,
+    dice: [1,1],
+    isDoubles: false,
+    gameOver: false,
+    pendingAction: null,
+    pendingData: {},
+    questionCallback: null,
+    cardCallback: null,
+    propOwners: {},
+    propModules: {},
+    questionUsed: {},
+  };
+
+  document.getElementById('log-list').innerHTML = '';
+  renderDie(document.getElementById('die1'), 1);
+  renderDie(document.getElementById('die2'), 1);
+  document.getElementById('dice-total').textContent = 'Roll to start!';
+  buildBoard();
+  updateUI();
+  startTurn(false);
+  addLog('New game started! Good luck!', 'good');
+}
+
+// ===================== HELP =====================
+function showHelp() {
+  document.getElementById('help-modal').classList.add('active');
+}
+function closeHelp() {
+  document.getElementById('help-modal').classList.remove('active');
+}
+
+// ===================== INIT =====================
+function init() {
+  renderDie(document.getElementById('die1'), 1);
+  renderDie(document.getElementById('die2'), 1);
+  buildBoard();
+  updateUI();
+  startTurn(false);
+  addLog('Welcome to ITE Pythonpoly! You go first. Roll the dice!', 'good');
+  addLog('Buy Python topic properties, add modules, and bankrupt PyBot!', 'info');
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
